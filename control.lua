@@ -189,7 +189,8 @@ function aqu.on_load()
   end, event_filters)
 
   script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
-    if event.mod_name == script.mod_name then
+    local settings = prototypes.get_mod_setting_filtered{{filter="mod", mod="AutoQualityUpgrades"}}
+    if settings[event.setting] then
         aqu.on_configuration_changed()
     end
   end)

@@ -1,6 +1,6 @@
 {
   "name": "AutoQualityUpgrades",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "title": "Auto Quality Upgrades",
   "author": "Stargateur",
   "description": "Automatically orders construction robots to upgrade the quality tier of entities when the logistic network contains the required items. Configurable runtime settings control scan interval and watched entity types.",
