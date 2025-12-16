@@ -1,0 +1,8 @@
+---------------------------------------------------------------------------------------------------
+Version: 0.0.0
+Date: 2025-12-16
+  Features:
+    - Automaticaly order quality upgrade entity if there is item in logistic network
+    - Option to manage ups used
+    - Option to only watch some entities
+    - Unwatch entities at max level, a factory full of legendary will use very little UPS
