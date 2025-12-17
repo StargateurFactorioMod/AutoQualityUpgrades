@@ -7,39 +7,68 @@ aqu.debug = false
 ---@field entities LuaEntity[]
 ---@field current_index integer
 --- normal not included
----@field qualities_inverted string[]
+---@field qualities string[]
 ---@field entities_by_run int
 
 ---@type Storage
 storage = storage
 
 ---@param entity LuaEntity
----@return boolean
-function aqu.process_entity(entity)
-  if entity.to_be_upgraded() or entity.to_be_deconstructed() then
-    return false
+function aqu.process_entity_to_be_upgraded(entity)
+  local target, quality = entity.get_upgrade_target()
+  if not target or not quality then
+    return
   end
+
   local networks = entity.surface.find_logistic_networks_by_construction_area(entity.position, entity.force)
   if #networks == 0 then
-    return false
+    return
   end
-  for _, quality_name in ipairs(storage.qualities_inverted) do
+
+  if target.name == entity.name and entity.is_registered_for_upgrade() then
+    for _, network in ipairs(networks) do
+      for _, item in ipairs(entity.prototype.items_to_place_this) do
+        if network.can_satisfy_request({ name = item.name, quality = quality }, 1, true) then
+          return
+        end
+      end
+    end
+
+    entity.cancel_upgrade(entity.force)
+  end
+end
+
+---@param entity LuaEntity
+function aqu.process_entity(entity)
+  if entity.to_be_deconstructed() then
+    return
+  end
+
+  if entity.to_be_upgraded() then
+    aqu.process_entity_to_be_upgraded(entity)
+    return
+  end
+
+  local networks = entity.surface.find_logistic_networks_by_construction_area(entity.position, entity.force)
+  if #networks == 0 then
+    return
+  end
+
+  for i = #storage.qualities, 1, -1 do
+    local quality_name = storage.qualities[i]
     if quality_name == entity.quality.name then
-      return false
+      return
     end
     local quality = prototypes.quality[quality_name]
     for _, item in ipairs(entity.prototype.items_to_place_this) do
       for _, network in ipairs(networks) do
         if network.can_satisfy_request({ name = item.name, quality = quality }, 1, true) then
-          if entity.order_upgrade { target = { name = entity.name, quality = quality }, force = entity.force } then
-            return true
-          end
+          entity.order_upgrade { target = { name = entity.name, quality = quality }, force = entity.force }
+          return
         end
       end
     end
   end
-
-  return false
 end
 
 function aqu.init_entities_by_run()
@@ -53,11 +82,8 @@ function aqu.run(tick)
       local entity = storage.entities[storage.current_index]
 
       if entity and entity.valid and entity.quality.next then
-        local entity_order_upgraded = aqu.process_entity(entity)
+        aqu.process_entity(entity)
         storage.current_index = storage.current_index + 1
-        if entity_order_upgraded then
-          break
-        end
       else
         storage.entities[storage.current_index] = storage.entities[#storage.entities]
         storage.entities[#storage.entities] = nil
@@ -94,10 +120,12 @@ function aqu.info(command)
   ---@type table<string, int>
   local types_count = {}
   for _, entity in ipairs(storage.entities) do
-    if not types_count[entity.type] then
-      types_count[entity.type] = 1
-    else
-      types_count[entity.type] = types_count[entity.type] + 1
+    if entity.valid then
+      if not types_count[entity.type] then
+        types_count[entity.type] = 1
+      else
+        types_count[entity.type] = types_count[entity.type] + 1
+      end
     end
   end
   for type, count in pairs(types_count) do
@@ -138,14 +166,12 @@ function aqu.init()
     end
   end
 
-  storage.qualities_inverted = {}
-  local function aux(quality)
-    if quality.next then
-      aux(quality.next)
-      table.insert(storage.qualities_inverted, quality.next.name)
-    end
+  storage.qualities = {}
+  local quality = prototypes.quality["normal"]
+  while quality.next do
+    table.insert(storage.qualities, quality.next.name)
+    quality = quality.next
   end
-  aux(prototypes.quality["normal"])
 
   aqu.init_entities_by_run()
 end
@@ -189,9 +215,9 @@ function aqu.on_load()
   end, event_filters)
 
   script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
-    local settings = prototypes.get_mod_setting_filtered{{filter="mod", mod="AutoQualityUpgrades"}}
+    local settings = prototypes.get_mod_setting_filtered { { filter = "mod", mod = "AutoQualityUpgrades" } }
     if settings[event.setting] then
-        aqu.on_configuration_changed()
+      aqu.on_configuration_changed()
     end
   end)
 
