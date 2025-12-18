@@ -182,7 +182,7 @@ end
 ---@param entity LuaEntity
 ---@return boolean
 function aqu.fully_upgraded(entity)
-  return entity.quality.next == nil
+  return entity.type ~= "entity-ghost" and entity.quality.next == nil
 end
 
 ---@param tick NthTickEventData
