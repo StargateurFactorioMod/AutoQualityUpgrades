@@ -27,16 +27,117 @@ function aqu.process_entity_to_be_upgraded(entity)
     return
   end
 
-  if target.name == entity.name and entity.is_registered_for_upgrade() then
+  -- is this quality upgrade and is this still in queue
+  if quality.name ~= entity.quality.name and entity.is_registered_for_upgrade() then
     for _, network in ipairs(networks) do
       for _, item in ipairs(entity.prototype.items_to_place_this) do
-        if network.can_satisfy_request({ name = item.name, quality = quality }, 1, true) then
+        if prototypes.item[item.name].place_result.name ~= entity.name then
+        elseif network.can_satisfy_request({ name = item.name, quality = quality }, 1, true) then
           return
         end
       end
     end
+    -- if this the same entity prototypes we don't want cancel upgrade that change entity nature
+    if target.name ~= entity.name then
+      aqu.try_upgrade_entity(entity, networks, target, true)
+    else
+      entity.cancel_upgrade(entity.force)
+    end
+  end
+end
 
-    entity.cancel_upgrade(entity.force)
+---@param entity LuaEntity
+---@param networks LuaLogisticNetwork[]
+---@param prototype LuaEntityPrototype
+---@param allow_downgrade boolean
+function aqu.try_upgrade_entity(entity, networks, prototype, allow_downgrade)
+  for i = #storage.qualities, 1, -1 do
+    local quality = storage.qualities[i]
+    if not allow_downgrade and quality.name == entity.quality.name then
+      return
+    end
+    for _, item in ipairs(prototype.items_to_place_this) do
+      for _, network in ipairs(networks) do
+        if network.can_satisfy_request({ name = item.name, quality = quality }, 1, true) then
+          entity.order_upgrade { target = { name = prototypes.item[item.name].place_result, quality = quality }, force = entity.force }
+          return
+        end
+      end
+    end
+  end
+end
+
+function aqu.get_modules_request(entity)
+  local item_request_proxy = entity.item_request_proxy
+  if item_request_proxy then
+    local insert_plan = item_request_proxy.insert_plan
+    if insert_plan then
+      local first = insert_plan[1].items.in_inventory[1]
+
+      if item_request_proxy.is_registered_for_construction() then
+        for _, network in ipairs(networks) do
+          if network.can_satisfy_request({ name = module.name, quality = quality }, 1, true) then
+          end
+        end
+      end
+    end
+  end
+end
+
+---@param entity LuaEntity
+---@param networks LuaLogisticNetwork[]
+---@param allow_downgrade boolean
+function aqu.try_upgrade_modules(entity, networks, allow_downgrade)
+  local module_inventory = entity.get_module_inventory()
+  if not module_inventory then
+    return
+  end
+  for i = 1, #module_inventory do
+    local module = module_inventory[i]
+    if module.valid_for_read then
+      for j = #storage.qualities, 1, -1 do
+        local quality = storage.qualities[j]
+        if quality.name == module.quality then
+          return
+        end
+        for _, network in ipairs(networks) do
+          if network.can_satisfy_request({ name = module.name, quality = quality }, 1, true) then
+            entity.surface.create_entity({
+              name = "item-request-proxy",
+              position = entity.position,
+              target = entity,
+              force = entity.force,
+              modules = { {
+                id = {
+                  name = module.name,
+                  quality = quality.name,
+                },
+                items = {
+                  in_inventory = { {
+                    inventory = defines.inventory.crafter_modules,
+                    stack = i - 1,
+                    count = 1,
+                  } }
+                },
+              } },
+              removal_plan = { {
+                id = {
+                  name = module.name,
+                  quality = module.quality.name,
+                },
+                items = {
+                  in_inventory = { {
+                    inventory = defines.inventory.crafter_modules,
+                    stack = i - 1,
+                    count = 1,
+                  } }
+                },
+              } },
+            })
+          end
+        end
+      end
+    end
   end
 end
 
@@ -45,20 +146,8 @@ end
 ---@param prototype LuaEntityPrototype
 ---@param allow_downgrade boolean
 function aqu.try_upgrade(entity, networks, prototype, allow_downgrade)
-  for i = #storage.qualities, 2, -1 do
-    local quality = storage.qualities[i]
-    if not allow_downgrade and quality.name == entity.quality.name then
-      return
-    end
-    for _, item in ipairs(prototype.items_to_place_this) do
-      for _, network in ipairs(networks) do
-        if network.can_satisfy_request({ name = item.name, quality = quality }, 1, true) then
-          entity.order_upgrade { target = { name = prototype.name, quality = quality }, force = entity.force }
-          return
-        end
-      end
-    end
-  end
+  aqu.try_upgrade_entity(entity, networks, prototype, allow_downgrade)
+  -- aqu.try_upgrade_modules(entity, networks, allow_downgrade)
 end
 
 ---@param entity LuaEntity
@@ -79,7 +168,7 @@ function aqu.process_entity(entity)
 
   if entity.type == "entity-ghost" then
     if entity.is_registered_for_construction() then
-      aqu.try_upgrade(entity, networks, entity.ghost_prototype--[[@as LuaEntityPrototype]], true)
+      aqu.try_upgrade(entity, networks, entity.ghost_prototype --[[@as LuaEntityPrototype]], true)
     end
   else
     aqu.try_upgrade(entity, networks, entity.prototype, false)
@@ -93,7 +182,7 @@ end
 ---@param entity LuaEntity
 ---@return boolean
 function aqu.fully_upgraded(entity)
-  return false
+  return entity.quality.next == nil
 end
 
 ---@param tick NthTickEventData
@@ -170,7 +259,6 @@ function aqu.info(command)
         end
       end
     end
-
   end
   for quality_name, entities_count in pairs(entities_count_per_quality) do
     local line = string.format("[img=quality.%s]", quality_name)
@@ -203,7 +291,7 @@ end
 ---@return string[]
 function aqu.filters()
   local filters = {}
-  for type in settings.global["aqu-watch-types"].value--[[@as string]]:gmatch("([^,]+)") do
+  for type in settings.global["aqu-watch-types"].value --[[@as string]]:gmatch("([^,]+)") do
     type = type:match("^%s*(.-)%s*$")
     table.insert(filters, type)
   end

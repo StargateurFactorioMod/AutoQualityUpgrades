@@ -1,4 +1,11 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.2.1
+Date: 2025-12-18
+  Features:
+    - Smarter cancel upgrade, if an entity is being upgrade to a different entity nature and there
+      is no item to build this entity it will try to find the best quality available item and
+      change the quality of the target upgrade.
+---------------------------------------------------------------------------------------------------
 Version: 0.2.0
 Date: 2025-12-17
   Features:
