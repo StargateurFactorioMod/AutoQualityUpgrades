@@ -354,6 +354,10 @@ function aqu.on_load()
     aqu.add_entity(event.entity)
   end, event_filters)
 
+  script.on_event(defines.events.script_raised_revive, function(event)
+    aqu.add_entity(event.entity)
+  end, event_filters)
+
   script.on_event(defines.events.on_space_platform_built_entity, function(event)
     aqu.add_entity(event.entity)
   end, event_filters)

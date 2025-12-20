@@ -1,8 +1,8 @@
 local watch_types = {
-  "accumumator",
+  "accumulator",
   "agricultural-tower",
-  "asteroid-collector", -- no idea if there is network in space
   "assembling-machine",
+  "asteroid-collector", -- no idea if there is network in space
   "beacon",
   "boiler",
   "burner-generator",
