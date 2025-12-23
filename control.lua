@@ -176,7 +176,11 @@ function aqu.process_entity(entity)
 end
 
 function aqu.init_entities_by_run()
-  storage.entities_by_run = math.max(1, #storage.entities / settings.global["aqu-ticks-by-cycle"].value)
+  if settings.global["aqu-tick-mode"].value == "cycle" then
+    storage.entities_by_run = math.max(1, #storage.entities / settings.global["aqu-ticks-per-cycle"].value)
+  else
+    storage.entities_by_run = settings.global["aqu-entities-per-on-nth-tick"].value
+  end
 end
 
 ---@param entity LuaEntity
@@ -327,10 +331,14 @@ end
 ---@nodiscard
 ---@return int
 function aqu.tick()
-  if storage.entities then
-    return math.max(1, settings.global["aqu-ticks-by-cycle"].value / math.max(1, #storage.entities))
+  if settings.global["aqu-tick-mode"].value == "cycle" then
+    if storage.entities then
+      return math.max(1, settings.global["aqu-ticks-per-cycle"].value / math.max(1, #storage.entities))
+    else
+      return 1
+    end
   else
-    return 1
+    return settings.global["aqu-on-nth-tick"].value --[[@as integer]]
   end
 end
 
@@ -381,12 +389,11 @@ function aqu.on_configuration_changed()
   aqu.on_load()
 end
 
-script.on_init(aqu.init)
+script.on_init(aqu.on_configuration_changed)
 
 script.on_load(aqu.on_load)
 
-
 script.on_configuration_changed(aqu.on_configuration_changed)
 
-commands.add_command("aqu_init", "Init storage, feel free to use to refresh entities list", aqu.init)
+commands.add_command("aqu_init", "Init storage, feel free to use to refresh entities list", aqu.on_configuration_changed)
 commands.add_command("aqu_info", "Show some info about rate and watch entities", aqu.info)

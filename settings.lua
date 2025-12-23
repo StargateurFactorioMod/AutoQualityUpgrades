@@ -33,17 +33,41 @@ local watch_types = {
 
 data:extend({
   {
-      type = "int-setting",
-      name = "aqu-ticks-by-cycle",
-      setting_type = "runtime-global",
-      default_value = 3600,
-      minimum_value = 1,
-  },
-  {
     type = "string-setting",
     name = "aqu-watch-types",
     setting_type = "runtime-global",
     default_value = table.concat(watch_types, ", "),
     allow_blank = true,
-  }
+  },
+  {
+    type = "string-setting",
+    name = "aqu-tick-mode",
+    setting_type = "runtime-global",
+    allowed_values = {
+      "cycle",
+      "constant",
+    },
+    default_value = "cycle",
+  },
+  {
+    type = "int-setting",
+    name = "aqu-ticks-per-cycle",
+    setting_type = "runtime-global",
+    default_value = 600,
+    minimum_value = 1,
+  },
+  {
+    type = "int-setting",
+    name = "aqu-on-nth-tick",
+    setting_type = "runtime-global",
+    default_value = 1,
+    minimum_value = 1,
+  },
+  {
+    type = "int-setting",
+    name = "aqu-entities-per-on-nth-tick",
+    setting_type = "runtime-global",
+    default_value = 42,
+    minimum_value = 1,
+  },
 })

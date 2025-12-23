@@ -1,4 +1,14 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.3.0
+Date: 2025-12-20
+  Features:
+    - Add constant mode for tick Default value are 42 entities every 1 tick
+  Changes:
+    - Rename setting aqu-ticks-by-cycle to aqu-ticks-per-cycle
+    - Default for cycle mode is 600
+  Bugfixes:
+    - script didn't set event handle on init only on load
+---------------------------------------------------------------------------------------------------
 Version: 0.2.3
 Date: 2025-12-20
   Bugfixes:
