@@ -70,4 +70,10 @@ data:extend({
     default_value = 42,
     minimum_value = 1,
   },
+  {
+    type = "bool-setting",
+    name = "aqu-modules-upgrades",
+    setting_type = "runtime-global",
+    default_value = true,
+  },
 })

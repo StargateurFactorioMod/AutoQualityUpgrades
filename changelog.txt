@@ -1,6 +1,22 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.0
+Date: 2025-01-07
+  Minor Features:
+    - very simple counting to reduce the number of time an entity is upgraded with same item. This
+      can still happen but less often.
+  Features:
+    - Upgrades modules somehow, don't expect much, doesn't downgrade ghost modules, alpha, can be
+      disable if bug
+  Bugfixes:
+    - Some wierd bugs.
+---------------------------------------------------------------------------------------------------
+Version: 0.3.1
+Date: 2025-12-23
+  Bugfixes:
+    - fix that entity that was "tier" upgraded was not touched if the upgrade was same quality
+---------------------------------------------------------------------------------------------------
 Version: 0.3.0
-Date: 2025-12-20
+Date: 2025-12-23
   Features:
     - Add constant mode for tick Default value are 42 entities every 1 tick
   Changes:
