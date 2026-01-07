@@ -34,8 +34,8 @@ function aqu.process_entity_to_be_upgraded(entity)
   if entity.is_registered_for_upgrade() then
     for _, network in ipairs(networks) do
       for _, item in ipairs(target.items_to_place_this) do
-        local n = math.max(1, aqu.get_used_item_by_network(network, item.name, quality.name))
-        if network.can_satisfy_request({ name = item.name, quality = quality }, n, true) then
+--        local n = math.max(1, aqu.get_used_item_by_network(network, item.name, quality.name))
+        if network.can_satisfy_request({ name = item.name, quality = quality }, 1, true) then
           return
         end
       end
@@ -51,15 +51,15 @@ function aqu.process_entity_to_be_upgraded(entity)
 end
 
 ---@param network LuaLogisticNetwork
----@param item ItemToPlace|LuaItemStack
----@param quality LuaQualityPrototype
-function aqu.add_used_item_to_network(network, item, quality)
+---@param item_name string
+---@param quality_name string
+function aqu.add_used_item_to_network(network, item_name, quality_name)
   local id = network.network_id
   if not storage.networks[id] then
     storage.networks[id] = {}
   end
 
-  local k = item.name .. quality.name
+  local k = item_name .. (quality_name or "normal")
   if not storage.networks[id][k] then
     storage.networks[id][k] = 1
   else
@@ -75,7 +75,7 @@ function aqu.get_used_item_by_network(network, item_name, quality_name)
   local id = network.network_id
 
   if storage.networks[id] then
-    local k = item_name .. quality_name
+    local k = item_name .. (quality_name or "normal")
     if storage.networks[id][k] then
       return storage.networks[id][k]
     end
@@ -84,10 +84,14 @@ function aqu.get_used_item_by_network(network, item_name, quality_name)
   return 0
 end
 
-function aqu.divide_by_two_networks_items()
+function aqu.reduce_item_used()
   for _, items in pairs(storage.networks) do
     for name, _ in pairs(items) do
-      items[name] = items[name] / 2
+      if items[name] > 1 then
+        items[name] = math.floor(items[name] / 2)
+      else
+        items[name] = nil
+      end
     end
   end
 end
@@ -107,7 +111,7 @@ function aqu.try_upgrade_entity(entity, networks, prototype, allow_downgrade)
         local n = aqu.get_used_item_by_network(network, item.name, quality.name) + 1
         if network.can_satisfy_request({ name = item.name, quality = quality }, n, true) then
           entity.order_upgrade { target = { name = prototypes.item[item.name].place_result, quality = quality }, force = entity.force }
-          aqu.add_used_item_to_network(network, item, quality)
+          aqu.add_used_item_to_network(network, item.name, quality.name)
           return
         end
       end
@@ -147,44 +151,50 @@ function aqu.check_plan(plans)
   return true
 end
 
+
+
 ---@param item_request_proxy LuaEntity
 ---@param networks LuaLogisticNetwork[]
 function aqu.handle_cancel_request(item_request_proxy, networks)
   local insert_plan = item_request_proxy.insert_plan
   local removal_plan = item_request_proxy.removal_plan
-  if aqu.check_plan(insert_plan) and aqu.check_plan(removal_plan) then
-    if item_request_proxy.is_registered_for_construction() then
-      local item = insert_plan[1].id
-      for _, network in ipairs(networks) do
-        local n = math.max(1, aqu.get_used_item_by_network(network, item.name, item.quality))
-        if not network.can_satisfy_request({ name = item.name, quality = item.quality }, 1, true) then
-          item_request_proxy.destroy()
+  if item_request_proxy.is_registered_for_construction() then
+    if aqu.check_plan(insert_plan) and aqu.check_plan(removal_plan) then
+      if insert_plan[1].id.name == removal_plan[1].id.name then
+        local module = insert_plan[1].id
+        for _, network in ipairs(networks) do
+--          local n = math.max(1, aqu.get_used_item_by_network(network, module.name, module.quality))
+          if network.can_satisfy_request({ name = module.name, quality = module.quality }, 1, true) then
+            return
+          end
         end
+        item_request_proxy.destroy()
       end
     end
   end
 end
 
----@param entity LuaEntity
----@return defines.inventory.beacon_modules|defines.inventory.crafter_modules|defines.inventory.lab_modules|defines.inventory.mining_drill_modules
-function aqu.get_module_inventory_type(entity)
-  local modules = {
-    ["lab"] = defines.inventory.lab_modules,
-    ["mining-drill"] = defines.inventory.mining_drill_modules,
-    ["beacon"] = defines.inventory.beacon_modules,
-    ["rocket-silo"] = defines.inventory.crafter_modules,
-    ["assembling-machine"] = defines.inventory.crafter_modules,
-    ["furnace"] = defines.inventory.crafter_modules,
-  }
+-- ---@param entity LuaEntity
+-- ---@return defines.inventory.beacon_modules|defines.inventory.crafter_modules|defines.inventory.lab_modules|defines.inventory.mining_drill_modules
+-- function aqu.get_module_inventory_type(entity)
+--   local modules = {
+--     ["lab"] = defines.inventory.lab_modules,
+--     ["mining-drill"] = defines.inventory.mining_drill_modules,
+--     ["beacon"] = defines.inventory.beacon_modules,
+--     ["rocket-silo"] = defines.inventory.crafter_modules,
+--     ["assembling-machine"] = defines.inventory.crafter_modules,
+--     ["furnace"] = defines.inventory.crafter_modules,
+--   }
 
-  return modules[entity.type]
-end
+--   return modules[entity.type]
+-- end
 
 ---@param entity LuaEntity
 ---@param module LuaItemStack
 ---@param stack int
 ---@param networks LuaLogisticNetwork[]
-function aqu.module_quality(entity, module, stack, networks)
+---@param inventory defines.inventory
+function aqu.module_quality(entity, module, stack, networks, inventory)
   if module.valid_for_read then
     for j = #storage.qualities, 1, -1 do
       local quality = storage.qualities[j]
@@ -194,7 +204,11 @@ function aqu.module_quality(entity, module, stack, networks)
       for _, network in ipairs(networks) do
         local n = aqu.get_used_item_by_network(network, module.name, quality.name) + 1
         if network.can_satisfy_request({ name = module.name, quality = quality }, n, true) then
-          local inventory = aqu.get_module_inventory_type(entity)
+          if n > 100 then
+            log("n = " .. n)
+            log(module.name)
+            log(serpent.block(quality))
+          end
           if entity.surface.create_entity({
                 name = "item-request-proxy",
                 position = entity.position,
@@ -227,7 +241,7 @@ function aqu.module_quality(entity, module, stack, networks)
                   },
                 } },
               }) then
-            aqu.add_used_item_to_network(network, module, quality)
+            aqu.add_used_item_to_network(network, module.name, quality.name)
             return
           end
         end
@@ -249,7 +263,7 @@ function aqu.try_upgrade_modules(entity, networks)
   end
   for i = 1, #module_inventory do
     local module = module_inventory[i]
-    aqu.module_quality(entity, module, i - 1, networks)
+    aqu.module_quality(entity, module, i - 1, networks, module_inventory.index)
   end
 end
 
@@ -318,9 +332,9 @@ function aqu.run(tick)
       end
     else
       storage.current_index = 1
-      storage.networks = {}
       aqu.setup_nth_tick()
       aqu.init_entities_by_run()
+      aqu.reduce_item_used()
     end
   end
 end
@@ -514,3 +528,7 @@ script.on_configuration_changed(aqu.on_configuration_changed)
 
 commands.add_command("aqu_init", "Init storage, feel free to use to refresh entities list", aqu.on_configuration_changed)
 commands.add_command("aqu_info", "Show some info about rate and watch entities", aqu.info)
+
+commands.add_command("aqu_log_storage", "Log some storage info for debug", function(command)
+  log(serpent.block(storage.networks))
+end)
